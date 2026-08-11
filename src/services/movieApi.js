@@ -291,14 +291,14 @@ export async function deleteUser(username) {
   });
 }
 
-// Tao lich chieu tu trang admin voi ma phim, ma rap, ngay gio chieu va gia ve.
+// Tao lich chieu tu trang admin; BE CyberSoft hien tai validate theo maCumRap thay vi maRap.
 export async function createShowtime(showtime) {
   return authorizedRequest("/QuanLyDatVe/TaoLichChieu", {
     method: "POST",
     body: JSON.stringify({
-      ...showtime,
       maPhim: Number(showtime.maPhim),
-      maRap: String(showtime.maRap),
+      maCumRap: String(showtime.maCumRap),
+      ngayChieuGioChieu: showtime.ngayChieuGioChieu,
       giaVe: Number(showtime.giaVe),
     }),
   });

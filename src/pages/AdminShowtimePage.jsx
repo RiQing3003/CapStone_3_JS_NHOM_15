@@ -168,7 +168,7 @@ export function AdminShowtimePage() {
   const showtimePayload = {
     maPhim: Number(form.maPhim),
     ngayChieuGioChieu: form.ngayChieuGioChieu,
-    maRap: String(form.maRap),
+    maCumRap: selectedClusterId,
     giaVe: Number(form.giaVe),
   };
 
@@ -316,7 +316,7 @@ export function AdminShowtimePage() {
 
           <button
             className="mt-6 rounded-md bg-[#f26b38] px-5 py-4 text-sm font-black disabled:cursor-not-allowed disabled:bg-slate-700"
-            disabled={isSubmitting || !form.maRap}
+            disabled={isSubmitting || !selectedClusterId}
           >
             {isSubmitting ? "Đang tạo..." : "Tạo lịch chiếu"}
           </button>
