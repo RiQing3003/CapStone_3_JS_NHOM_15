@@ -1,0 +1,16 @@
+===== Buổi 8 =====
+ * Router: react-router-dom
+
+===== Buổi 9 =====
+ * Router: react-router-dom
+ * Form validation
+
+===== Buổi 10 =====
+ * Fetch api - List Movie
+ * useEffect()
+ * refactor api
+
+
+===== Buổi 11 =====
+ * Fetch api - Detail Movie
+ * Auth
