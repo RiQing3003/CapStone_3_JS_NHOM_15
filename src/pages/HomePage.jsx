@@ -25,7 +25,7 @@ function formatShortShowtime(dateValue) {
 }
 
 // Trang chủ khách hàng: load phim, banner, hệ thống rạp và render các section chính.
-export function HomePage() {
+export function HomePage({ scrollToSection = "" }) {
   const [movies, setMovies] = useState([]);
   const [banners, setBanners] = useState([]);
   const [bannerMovieDetails, setBannerMovieDetails] = useState({});
@@ -48,6 +48,19 @@ export function HomePage() {
       })
       .finally(() => setIsLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!scrollToSection) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return undefined;
+    }
+
+    const timerId = window.setTimeout(() => {
+      document.getElementById(scrollToSection)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+
+    return () => window.clearTimeout(timerId);
+  }, [scrollToSection]);
 
   useEffect(() => {
     let isActive = true;
@@ -96,10 +109,11 @@ export function HomePage() {
   const heroImage = activeBanner?.image ?? featuredMovie?.backdrop;
   const selectedScheduleSystem =
     theaterScheduleSystems.find((system) => system.maHeThongRap === selectedSystemId) ?? theaterScheduleSystems[0];
-  const scheduleClustersById = (selectedScheduleSystem?.lstCumRap ?? []).reduce((clustersById, cluster) => {
-    clustersById[cluster.maCumRap] = cluster;
-    return clustersById;
-  }, {});
+  const scheduleClustersById = {};
+
+  for (const cluster of selectedScheduleSystem?.lstCumRap ?? []) {
+    scheduleClustersById[cluster.maCumRap] = cluster;
+  }
 
   return (
     <main className="min-h-screen bg-[#0f1015] text-white">

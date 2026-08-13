@@ -29,7 +29,11 @@ export function TicketRoomPage() {
 
   const selectedSeatItems =
     roomState.room?.seats.filter((seat) => selectedSeats.includes(seat.id)) ?? [];
-  const subtotal = selectedSeatItems.reduce((sum, seat) => sum + seat.price, 0);
+  let subtotal = 0;
+
+  for (const seat of selectedSeatItems) {
+    subtotal += seat.price;
+  }
 
   // Chọn hoặc bỏ chọn ghế nếu ghế chưa được đặt.
   function toggleSeat(seat) {

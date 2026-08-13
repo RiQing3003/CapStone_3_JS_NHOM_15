@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { AdminFilmsPage } from "./pages/AdminFilmsPage";
@@ -13,26 +12,6 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { TicketRoomPage } from "./pages/TicketRoomPage";
 import { getStoredUser } from "./utils/authStorage";
-
-// Xu ly cac link noi bo nhu /#movies va tu cuon len dau trang khi doi route.
-function ScrollToHash() {
-  const location = useLocation();
-
-  useEffect(() => {
-    if (!location.hash) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-
-    const timerId = window.setTimeout(() => {
-      document.querySelector(location.hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 80);
-
-    return () => window.clearTimeout(timerId);
-  }, [location.pathname, location.hash]);
-
-  return null;
-}
 
 // Bao ve khu vuc quan tri: chua dang nhap admin thi day ve trang dang nhap.
 function RequireAdmin() {
@@ -50,14 +29,13 @@ function RequireAdmin() {
 function AppRoutes() {
   return (
     <>
-      <ScrollToHash />
       <Routes>
         {/* Trang khach hang */}
         <Route element={<HomePage />} path="/" />
         <Route element={<HomePage />} path="/home" />
         <Route element={<HomePage />} path="/trangchu" />
-        <Route element={<Navigate replace to="/#showtimes" />} path="/lichchieu" />
-        <Route element={<Navigate replace to="/#movies" />} path="/datve" />
+        <Route element={<HomePage scrollToSection="showtimes" />} path="/lichchieu" />
+        <Route element={<HomePage scrollToSection="movies" />} path="/datve" />
 
         {/* Chi tiet phim va phong dat ve */}
         <Route element={<DetailPage />} path="/detail/:movieId" />

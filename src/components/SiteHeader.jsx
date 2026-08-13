@@ -2,7 +2,7 @@ import { Link, NavLink } from "react-router-dom";
 import { clearStoredUser, getStoredUser } from "../utils/authStorage";
 
 const navItems = [
-  { label: "Phim", to: "/#movies" },
+  { label: "Phim", to: "/datve" },
   { label: "Lịch chiếu", to: "/lichchieu" },
   { label: "Đặt vé", to: "/datve" },
 ];

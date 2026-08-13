@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AdminShell } from "../components/AdminShell";
 import { createMovie, getApiConfig, getMovieInfo, updateMovie } from "../services/movieApi";
@@ -24,10 +25,8 @@ async function fileFromImageUrl(imageUrl, movieTitle) {
   if (!imageUrl) return null;
 
   try {
-    const response = await fetch(imageUrl);
-    if (!response.ok) return null;
-
-    const blob = await response.blob();
+    const response = await axios.get(imageUrl, { responseType: "blob" });
+    const blob = response.data;
     const extension = blob.type.split("/")[1] || "jpg";
     const safeName = (movieTitle || "poster")
       .toLowerCase()
@@ -50,20 +49,9 @@ export function AdminMovieFormPage() {
   const [movie, setMovie] = useState({ ...initialMovie, maPhim: movieId ?? "" });
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadedImagePreview, setUploadedImagePreview] = useState("");
 
-  const uploadedImagePreview = useMemo(() => {
-    if (!movie.hinhAnh) return "";
-    return URL.createObjectURL(movie.hinhAnh);
-  }, [movie.hinhAnh]);
   const imagePreview = uploadedImagePreview || movie.posterUrl;
-
-  useEffect(() => {
-    return () => {
-      if (uploadedImagePreview) {
-        URL.revokeObjectURL(uploadedImagePreview);
-      }
-    };
-  }, [uploadedImagePreview]);
 
   useEffect(() => {
     let isActive = true;
@@ -178,7 +166,12 @@ export function AdminMovieFormPage() {
               <input
                 accept="image/*"
                 className="mt-2 w-full rounded-md border border-white/10 bg-white px-4 py-3 text-slate-950 file:mr-4 file:rounded file:border-0 file:bg-[#f5c84c] file:px-3 file:py-2 file:font-bold"
-                onChange={(event) => updateField("hinhAnh", event.target.files?.[0] ?? null)}
+                onChange={(event) => {
+                  const selectedFile = event.target.files?.[0] ?? null;
+
+                  updateField("hinhAnh", selectedFile);
+                  setUploadedImagePreview(selectedFile ? URL.createObjectURL(selectedFile) : "");
+                }}
                 required={!isEdit}
                 type="file"
               />

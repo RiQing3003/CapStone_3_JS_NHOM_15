@@ -11,27 +11,27 @@ import {
 import { getStoredAccessToken, getStoredUser } from "../utils/authStorage";
 import { formatCurrency } from "../utils/format";
 
-// Định dạng Date thành chuỗi dd/MM/yyyy HH:mm:ss đúng yêu cầu API tạo lịch chiếu.
+// Định dạng Date thành chuỗi dd/MM/yyyy HH:mm:ss theo yêu cầu API tạo lịch chiếu.
 function formatShowtimeDate(date) {
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
   const hour = String(date.getHours()).padStart(2, "0");
   const minute = String(date.getMinutes()).padStart(2, "0");
+  const second = String(date.getSeconds()).padStart(2, "0");
 
-  return `${day}/${month}/${year} ${hour}:${minute}:00`;
+  return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
 }
 
-// Tạo ngày chiếu mặc định sau hiện tại một tuần để tránh chọn ngày quá khứ.
+// Tạo ngày giờ mặc định sau hiện tại để form có sẵn dữ liệu hợp lệ.
 function getDefaultShowtimeDate() {
-  const nextWeek = new Date();
-  nextWeek.setDate(nextWeek.getDate() + 7);
-  nextWeek.setHours(14, 30, 0, 0);
-
-  return formatShowtimeDate(nextWeek);
+  const date = new Date();
+  date.setDate(date.getDate() + 2);
+  date.setHours(14, 30, 0, 0);
+  return formatShowtimeDate(date);
 }
 
-// Gợi ý ngày chiếu dựa trên ngày khởi chiếu của phim.
+// Gợi ý ngày chiếu sau ngày khởi chiếu của phim.
 function getSuggestedShowtimeDate(movie) {
   if (!movie?.releaseDate) {
     return getDefaultShowtimeDate();
@@ -43,35 +43,26 @@ function getSuggestedShowtimeDate(movie) {
     return getDefaultShowtimeDate();
   }
 
-  const suggestedDate = new Date(Math.max(releaseDate.getTime(), new Date().getTime()));
-  suggestedDate.setDate(suggestedDate.getDate() + 1);
-  suggestedDate.setHours(14, 30, 0, 0);
-
-  return formatShowtimeDate(suggestedDate);
+  releaseDate.setDate(releaseDate.getDate() + 1);
+  releaseDate.setHours(14, 30, 0, 0);
+  return formatShowtimeDate(releaseDate);
 }
 
-// Parse và kiểm tra chuỗi ngày chiếu admin nhập vào.
+// Chuyển chuỗi dd/MM/yyyy HH:mm:ss thành Date để kiểm tra dữ liệu trước khi gọi API.
 function parseShowtimeDate(value) {
-  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})\s(\d{2}):(\d{2}):(\d{2})$/);
-
-  if (!match) {
-    return null;
-  }
-
-  const [, day, month, year, hour, minute, second] = match;
-  const parsedDate = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-    Number(second),
-  );
+  const [datePart, timePart = "00:00:00"] = value.trim().split(" ");
+  const [day, month, year] = datePart.split("/").map(Number);
+  const [hour = 0, minute = 0, second = 0] = timePart.split(":").map(Number);
+  const parsedDate = new Date(year, month - 1, day, hour, minute, second);
 
   if (
-    parsedDate.getFullYear() !== Number(year) ||
-    parsedDate.getMonth() !== Number(month) - 1 ||
-    parsedDate.getDate() !== Number(day)
+    !day ||
+    !month ||
+    !year ||
+    Number.isNaN(parsedDate.getTime()) ||
+    parsedDate.getDate() !== day ||
+    parsedDate.getMonth() !== month - 1 ||
+    parsedDate.getFullYear() !== year
   ) {
     return null;
   }
@@ -79,27 +70,19 @@ function parseShowtimeDate(value) {
   return parsedDate;
 }
 
-// Tạo thông báo lỗi dễ hiểu hơn khi API tạo lịch chiếu trả lỗi.
+// Ghép message lỗi từ BE với payload thật để dễ so sánh với Swagger/DevTools.
 function getCreateShowtimeErrorMessage(error, payload, selectedCluster, selectedScreen) {
   const apiMessage = error.message || "Không thể tạo lịch chiếu. Vui lòng kiểm tra lại dữ liệu.";
-
-  if (!apiMessage.toLowerCase().includes("cụm rạp")) {
-    return apiMessage;
-  }
-
-  return [
-    apiMessage,
-    `Phim ${payload.maPhim}, ${selectedScreen?.tenRap ?? "rạp đã chọn"}, suất ${payload.ngayChieuGioChieu}.`,
+  const payloadText = JSON.stringify(payload);
+  const selectedInfo =
     selectedCluster && selectedScreen
-      ? `Rạp đang chọn thuộc ${selectedCluster.tenCumRap}.`
-      : "",
-    "Vui lòng thử cụm rạp khác hoặc liên hệ quản trị hệ thống.",
-  ]
-    .filter(Boolean)
-    .join(" ");
+      ? `${selectedCluster.tenCumRap}, ${selectedScreen.tenRap} - mã rạp ${selectedScreen.maRap}.`
+      : "Chưa đủ thông tin rạp đã chọn.";
+
+  return `${apiMessage} Payload gửi API: ${payloadText}. Rạp đang chọn: ${selectedInfo}`;
 }
 
-// Trang admin tạo lịch chiếu cho một phim theo hệ thống rạp, cụm rạp và rạp đã chọn.
+// Trang admin tạo lịch chiếu cho một phim theo hệ thống rạp, cụm rạp và phòng chiếu đã chọn.
 export function AdminShowtimePage() {
   const { movieId } = useParams();
   const [movie, setMovie] = useState(null);
@@ -172,7 +155,7 @@ export function AdminShowtimePage() {
     giaVe: Number(form.giaVe),
   };
 
-  // Validate dữ liệu form và gửi payload TaoLichChieu lên server.
+  // Kiểm tra dữ liệu form và gửi payload tạo lịch chiếu lên server.
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -180,7 +163,7 @@ export function AdminShowtimePage() {
 
     if (storedUser?.maLoaiNguoiDung !== "QuanTri" || !getStoredAccessToken()) {
       setMessage("Bạn cần đăng nhập bằng tài khoản admin trước khi tạo lịch chiếu.");
-    return;
+      return;
     }
 
     const groupCode = getApiConfig().groupCode;
@@ -194,11 +177,11 @@ export function AdminShowtimePage() {
 
     if (!parsedDate) {
       setMessage("Ngày chiếu phải đúng định dạng dd/MM/yyyy HH:mm:ss, ví dụ 31/08/2026 14:30:00.");
-    return;
+      return;
     }
 
     if (parsedDate <= new Date()) {
-      setMessage("Ngày chiếu phải lớn hơn ngày hiện tại. Ví dụ hôm nay là 10/08/2026 thì không dùng 31/07/2026 được.");
+      setMessage("Ngày chiếu phải lớn hơn ngày hiện tại.");
       return;
     }
 
@@ -206,11 +189,7 @@ export function AdminShowtimePage() {
       const releaseDate = new Date(movie.releaseDate);
 
       if (!Number.isNaN(releaseDate.getTime()) && parsedDate < releaseDate) {
-        setMessage(
-          `Suất chiếu phải sau ngày khởi chiếu của phim (${formatShowtimeDate(releaseDate)}). Hãy chọn ngày từ ${
-            formatShowtimeDate(releaseDate).split(" ")[0]
-          } trở đi.`,
-        );
+        setMessage(`Suất chiếu phải sau ngày khởi chiếu của phim (${formatShowtimeDate(releaseDate)}).`);
         return;
       }
     }
@@ -253,9 +232,7 @@ export function AdminShowtimePage() {
               <select
                 className="mt-2 w-full rounded-md border border-white/10 bg-white px-4 py-3 text-slate-950 outline-none focus:border-[#f5c84c]"
                 onChange={(event) => {
-                  const nextSystemId = event.target.value;
-
-                  setSelectedSystemId(nextSystemId);
+                  setSelectedSystemId(event.target.value);
                 }}
                 required
                 value={selectedSystemId}
@@ -336,8 +313,12 @@ export function AdminShowtimePage() {
           )}
           <dl className="mt-5 space-y-3 text-sm">
             <Summary label="Cụm rạp" value={selectedCluster?.tenCumRap ?? "Chưa chọn"} />
+            <Summary label="Mã cụm rạp" value={selectedCluster?.maCumRap ?? "Chưa chọn"} />
             <Summary label="Địa chỉ" value={selectedCluster?.diaChi ?? "Chưa chọn"} />
-            <Summary label="Rạp" value={selectedScreen ? selectedScreen.tenRap : "Chưa chọn"} />
+            <Summary
+              label="Rạp"
+              value={selectedScreen ? `${selectedScreen.tenRap} - mã ${selectedScreen.maRap}` : "Chưa chọn"}
+            />
             <Summary label="Khởi chiếu" value={movie?.releaseDate ? formatShowtimeDate(new Date(movie.releaseDate)) : "Chưa có"} />
             <Summary label="Suất chiếu" value={form.ngayChieuGioChieu} />
             <Summary label="Giá vé" value={formatCurrency(Number(form.giaVe) || 0)} />

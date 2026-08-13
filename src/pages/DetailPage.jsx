@@ -77,15 +77,19 @@ export function DetailPage() {
             <div className="mt-7 flex flex-wrap gap-3">
               <a
                 className="rounded-md border border-white/20 px-5 py-3 text-sm font-black text-white transition hover:border-[#f5c84c]"
-                href={movie.trailer || "#showtimes"}
+                href={movie.trailer || undefined}
                 rel="noreferrer"
                 target={movie.trailer ? "_blank" : undefined}
               >
                 Xem trailer
               </a>
-              <a className="rounded-md bg-[#f26b38] px-5 py-3 text-sm font-black text-white" href="#showtimes">
+              <button
+                className="rounded-md bg-[#f26b38] px-5 py-3 text-sm font-black text-white"
+                onClick={() => document.getElementById("showtimes")?.scrollIntoView({ behavior: "smooth" })}
+                type="button"
+              >
                 Chọn suất chiếu
-              </a>
+              </button>
             </div>
           </div>
         </div>

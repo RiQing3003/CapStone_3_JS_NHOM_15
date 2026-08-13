@@ -1,3 +1,4 @@
+import axios from "axios";
 import { MOVIE_API_CONFIG } from "../config/movieConfig";
 import { getStoredAccessToken, getStoredUser } from "../utils/authStorage";
 
@@ -35,40 +36,32 @@ async function request(path, options = {}) {
   const { headers: optionHeaders, ...requestOptions } = options;
   const isFormData = requestOptions.body instanceof FormData;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...requestOptions,
-    headers: {
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      ...(CYBERSOFT_TOKEN ? { TokenCybersoft: CYBERSOFT_TOKEN } : {}),
-      ...optionHeaders,
-    },
-  });
+  try {
+    const response = await axios({
+      url: `${API_BASE_URL}${path}`,
+      method: requestOptions.method || "GET",
+      data: requestOptions.body,
+      headers: {
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        ...(CYBERSOFT_TOKEN ? { TokenCybersoft: CYBERSOFT_TOKEN } : {}),
+        ...optionHeaders,
+      },
+    });
 
-  if (!response.ok) {
-    let errorMessage = `API ${response.status}: ${path}`;
+    const payload = response.data;
+    return payload.content ?? payload;
+  } catch (error) {
+    const errorPayload = error.response?.data;
+    const errorMessage =
+      errorPayload?.content ||
+      errorPayload?.message ||
+      errorPayload?.Message ||
+      errorPayload?.title ||
+      error.message ||
+      `API error: ${path}`;
 
-    try {
-      const errorPayload = await response.json();
-      errorMessage =
-        errorPayload.content ||
-        errorPayload.message ||
-        errorPayload.Message ||
-        errorPayload.title ||
-        errorMessage;
-    } catch {
-      try {
-        const errorText = await response.text();
-        errorMessage = errorText || errorMessage;
-      } catch {
-        // Keep the status-based message when the response body cannot be read.
-      }
-    }
-
-    throw new Error(errorMessage);
+    throw new Error(errorMessage, { cause: error });
   }
-
-  const payload = await response.json();
-  return payload.content ?? payload;
 }
 
 // Goi cac API can dang nhap: bo sung Bearer token cua user/admin hien tai.
@@ -183,17 +176,20 @@ export async function getMovieDetail(movieId) {
   try {
     const detail = await request(`/QuanLyRap/LayThongTinLichChieuPhim?MaPhim=${movieId}`);
     const movie = normalizeMovie(detail);
-    const showtimes =
-      detail.heThongRapChieu?.flatMap((system) =>
-        system.cumRapChieu.flatMap((cinema) =>
-          cinema.lichChieuPhim.map((showtime) =>
+    const showtimes = [];
+
+    for (const system of detail.heThongRapChieu || []) {
+      for (const cinema of system.cumRapChieu || []) {
+        for (const showtime of cinema.lichChieuPhim || []) {
+          showtimes.push(
             normalizeShowtime({
               ...showtime,
               tenCumRap: cinema.tenCumRap,
             }),
-          ),
-        ),
-      ) ?? [];
+          );
+        }
+      }
+    }
 
     return {
       ...movie,
@@ -291,14 +287,17 @@ export async function deleteUser(username) {
   });
 }
 
-// Tao lich chieu tu trang admin; BE CyberSoft hien tai validate theo maCumRap thay vi maRap.
+// Tao lich chieu tu trang admin; BE CyberSoft bi lech ten field nen phai gui maCumRap thay cho maRap.
 export async function createShowtime(showtime) {
   return authorizedRequest("/QuanLyDatVe/TaoLichChieu", {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json-patch+json",
+    },
     body: JSON.stringify({
       maPhim: Number(showtime.maPhim),
-      maCumRap: String(showtime.maCumRap),
       ngayChieuGioChieu: showtime.ngayChieuGioChieu,
+      maCumRap: String(showtime.maCumRap),
       giaVe: Number(showtime.giaVe),
     }),
   });

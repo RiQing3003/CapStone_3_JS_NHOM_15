@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminShell } from "../components/AdminShell";
 import { deleteMovie, getMovies } from "../services/movieApi";
@@ -16,14 +16,12 @@ export function AdminFilmsPage() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const filteredMovies = useMemo(() => {
-    const normalizedKeyword = keyword.trim().toLowerCase();
-    if (!normalizedKeyword) return movies;
-
-    return movies.filter((movie) =>
-      `${movie.id} ${movie.title} ${movie.description}`.toLowerCase().includes(normalizedKeyword),
-    );
-  }, [keyword, movies]);
+  const normalizedKeyword = keyword.trim().toLowerCase();
+  const filteredMovies = normalizedKeyword
+    ? movies.filter((movie) =>
+        `${movie.id} ${movie.title} ${movie.description}`.toLowerCase().includes(normalizedKeyword),
+      )
+    : movies;
 
   // Xóa phim sau khi admin xác nhận.
   async function handleDelete(movieId) {
